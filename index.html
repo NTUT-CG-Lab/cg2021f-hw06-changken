@@ -21,7 +21,14 @@
     <div style="position: absolute; top: 15%; left: 50%; color: #fff">
       <div id="modelNum">iter: #0</div>
     </div>
+    <div id="app">
+      <select @change="onchangeEvent">
+        <option v-for="(item, index) in modelName" v-bind:value="index">{{ item }}</option>
+      </select>
+      <p>Change model powered by vue.js 3</p>
+    </div>
 
+    <script src="https://unpkg.com/vue@next"></script>
     <script src="scoreoutputer.min.js"></script>
     <script>
       // 建構子 ScoreOutputer 接受一個字串，該字串為 csv 的檔案名稱
@@ -41,7 +48,7 @@
         so.addChild('場景顯示成果模型', 1, true);
         so.addChild('執行pytorch3D程式碼產生25個模型', 2, true);
         so.addChild('可拖動GUI顯示不同階段模型', 3, true);
-        so.addChild('可更換其他模型', 3, false);
+        so.addChild('可更換其他模型', 3, true);
 
         //產生自評表，參數如下所示
         so.renderModal(
@@ -92,6 +99,12 @@
         400, 500, 600, 800, 1000, 1250, 1500, 1750, 2000,
       ];
 
+      const loader = new PLYLoader();
+      let gui;
+
+      const modelName = ['dolphin', 'cake'];
+      let modelIndex = 0;
+
       init();
       animate();
 
@@ -128,89 +141,7 @@
 
         // PLY model files
 
-        const loader = new PLYLoader();
-
-        // Load original model according to model_id
-        loader.load('./models/dolphin.ply', function (geometry) {
-          const material = new THREE.MeshPhongMaterial({
-            color: 0xff5555,
-            specular: 0x111111,
-            shininess: 200,
-          });
-          const effectController = { step: 1 };
-
-          const gui = new GUI();
-          gui
-            .add(effectController, 'step', 1, models.length, 1)
-            .onChange(iterChanger);
-
-          let currentIter = effectController.step;
-          function iterChanger() {
-            if (currentIter === effectController.step) return;
-            currentIter = effectController.step;
-            var textTag = document.getElementById('modelNum');
-            textTag.innerText = 'iter #' + models[currentIter - 1].toString();
-            for (let i = 0; i < models.length; i++) {
-              let item = scene.getObjectByName(models[i]);
-              if (i !== currentIter - 1 && item.visible === true)
-                item.visible = false;
-              else if (i === currentIter - 1) item.visible = true;
-            }
-          }
-
-          geometry.computeVertexNormals();
-
-          const mesh = new THREE.Mesh(geometry, material);
-
-          mesh.position.set(-0.5, -0.5, 0);
-          mesh.scale.multiplyScalar(1.5);
-
-          mesh.castShadow = true;
-          mesh.receiveShadow = true;
-
-          scene.add(mesh);
-        });
-
-        // The material for pytorch3d model
-        const material = new THREE.MeshPhongMaterial({
-          color: 0xaaaaaa,
-          specular: 0x111111,
-          shininess: 200,
-        });
-
-        // Load models of pytorch3d
-        loader.load('./models/dolphin/model_2000.ply', function (geometry) {
-          geometry.computeVertexNormals();
-
-          const mesh = new THREE.Mesh(geometry, material);
-
-          mesh.position.set(0.5, -0.5, 0);
-          mesh.scale.multiplyScalar(1.5);
-
-          mesh.castShadow = true;
-          mesh.receiveShadow = true;
-
-          scene.add(mesh);
-        });
-
-        models.forEach(el =>
-          loader.load(
-            './models/dolphin/model_' + el.toString() + '.ply',
-            geometry => {
-              geometry.computeVertexNormals();
-              const mesh = new THREE.Mesh(geometry, material);
-              mesh.name = el;
-              mesh.position.set(0.5, -0.5, 0);
-              mesh.scale.multiplyScalar(1.5);
-              mesh.castShadow = true;
-              mesh.receiveShadow = true;
-              if (el !== 0) {
-                mesh.visible = false;
-              }
-              scene.add(mesh);
-            }
-          )
-        );
+        loadModel();
 
         // Lights
 
@@ -276,6 +207,119 @@
 
         renderer.render(scene, camera);
       }
+
+      function loadModel(){
+        // Load original model according to model_id
+        loader.load(`./models/${modelName[modelIndex]}.ply`, function (geometry) {
+          const material = new THREE.MeshPhongMaterial({
+            color: 0xff5555,
+            specular: 0x111111,
+            shininess: 200,
+          });
+          const effectController = { step: 1 };
+
+          gui = new GUI();
+          gui
+            .add(effectController, 'step', 1, models.length, 1)
+            .onChange(iterChanger);
+
+          let currentIter = effectController.step;
+          function iterChanger() {
+            if (currentIter === effectController.step) return;
+            currentIter = effectController.step;
+            var textTag = document.getElementById('modelNum');
+            textTag.innerText = 'iter #' + models[currentIter - 1].toString();
+            for (let i = 0; i < models.length; i++) {
+              let item = scene.getObjectByName(models[i]);
+              if (i !== currentIter - 1 && item.visible === true)
+                item.visible = false;
+              else if (i === currentIter - 1) item.visible = true;
+            }
+          }
+
+          geometry.computeVertexNormals();
+
+          const mesh = new THREE.Mesh(geometry, material);
+          mesh.name = 'main';
+
+          mesh.position.set(-0.5, -0.5, 0);
+          mesh.scale.multiplyScalar(1.5);
+
+          mesh.castShadow = true;
+          mesh.receiveShadow = true;
+
+          scene.add(mesh);
+        });
+
+        // The material for pytorch3d model
+        const material = new THREE.MeshPhongMaterial({
+          color: 0xaaaaaa,
+          specular: 0x111111,
+          shininess: 200,
+        });
+
+        // Load models of pytorch3d
+        loader.load(`./models/${modelName[modelIndex]}/model_2000.ply`, function (geometry) {
+          geometry.computeVertexNormals();
+
+          const mesh = new THREE.Mesh(geometry, material);
+          mesh.name = 'model_2000';
+
+          mesh.position.set(0.5, -0.5, 0);
+          mesh.scale.multiplyScalar(1.5);
+
+          mesh.castShadow = true;
+          mesh.receiveShadow = true;
+
+          scene.add(mesh);
+        });
+
+        models.forEach(el =>
+          loader.load(
+            `./models/${modelName[modelIndex]}/model_${el.toString()}.ply`,
+            geometry => {
+              geometry.computeVertexNormals();
+              const mesh = new THREE.Mesh(geometry, material);
+              mesh.name = el;
+              mesh.position.set(0.5, -0.5, 0);
+              mesh.scale.multiplyScalar(1.5);
+              mesh.castShadow = true;
+              mesh.receiveShadow = true;
+              if (el !== 0) {
+                mesh.visible = false;
+              }
+              scene.add(mesh);
+            }
+          )
+        );
+      }
+
+      function clearModel() {
+        models.forEach(v => {
+          scene.remove(scene.getObjectByName(v));
+        });
+        scene.remove(scene.getObjectByName('main'));
+        scene.remove(scene.getObjectByName('model_2000'));
+        gui.destroy();
+      }
+
+      const app = Vue.createApp({
+        data() {
+          return {
+            modelName: modelName,
+          };
+        },
+        methods: {
+          onchangeEvent(e){
+            let i = parseInt(e.target.value);
+            clearModel();
+            modelIndex = i;
+            loadModel();
+          }
+        },
+      });
+
+      app.mount('#app');
     </script>
   </body>
 </html>
